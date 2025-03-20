@@ -1,47 +1,76 @@
-from flask import Flask, request
+from flask import Flask, jsonify
 import requests
-from waitress import serve
 
 app = Flask(__name__)
 
-@app.route('/', methods=['GET'])
-def get_data():
-    # Extracting 'uid' parameter from the query string
-    uid = request.args.get('uid')
-    if not uid:
-        return "Error: UID not provided", 400, {'Content-Type': 'text/plain; charset=utf-8'}
-    
-    url = f"https://freefire-virusteam.vercel.app/glfflike?uid={uid}"
-    
-    try:
-        response = requests.get(url)
+def fetch_ff_info(uid):
+    url = f"https://freefire-info.fly.dev/{uid}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
         data = response.json()
-        
-        if "status" in data and data["status"] == "Success":
-            # Extracting Guild-related information
-            guild_info = data.get("Guild Information", {})
-            
-            guild_name = guild_info.get("Guild Name", "Not available")
-            guild_id = guild_info.get("Guild ID", "Not available")
-            guild_level = guild_info.get("Guild Level", "Not available")
-            guild_capacity = guild_info.get("Guild Capacity", "Not available")
-            guild_current_members = guild_info.get("Guild Current Members", "Not available")
-            leader_ac_create_time = guild_info.get("Leader Ac Created Time", "Not available")
-            
-            return f"""GUILD NAME : {guild_name}
-GUILD ID : {guild_id}
-GUILD LEVEL : {guild_level}
-GUILD CAPACITY : {guild_capacity}
-GUILD CURRENT MEMBERS : {guild_current_members}
 
-LEADER AC CREATE TIME : {leader_ac_create_time}""", 200, {'Content-Type': 'text/plain; charset=utf-8'}
-        
-        else:
-            return "Error: Status is not Success or Guild Information not found!", 404, {'Content-Type': 'text/plain; charset=utf-8'}
-    
-    except Exception as e:
-        return f"Error: Server Error\nMessage: {str(e)}", 500, {'Content-Type': 'text/plain; charset=utf-8'}
+        # Extracting Basic Info
+        basic = data.get("basicinfo", [{}])[0]
+        username = basic.get("username", "N/A")
+        level = basic.get("level", "N/A")
+        likes = basic.get("likes", "N/A")
+        region = basic.get("region", "N/A")
+        last_login = basic.get("lastlogin", "N/A")
+        bio = basic.get("bio", "N/A")
+        exp = basic.get("Exp", "N/A")
+        ob = basic.get("OB", "N/A")
+        avatar = basic.get("avatar", "N/A")
+        banner = basic.get("banner", "N/A")
 
-if __name__ == "__main__":
-    print("API is running 🔥")
-    serve(app, host='0.0.0.0', port=8080)  # Use this for deployment
+        # Extracting Clan Admin Info
+        clan_admin = data.get("clanadmin", [{}])[0]
+        admin_name = clan_admin.get("adminname", "N/A")
+        br_point = clan_admin.get("brpoint", "N/A")
+        cs_point = clan_admin.get("cspoint", "N/A")
+        admin_exp = clan_admin.get("exp", "N/A")
+        id_admin = clan_admin.get("idadmin", "N/A")
+
+        # Extracting Clan Info
+        clan_info = data.get("claninfo", [{}])[0]
+        clan_id = clan_info.get("clanid", "N/A")
+        clan_name = clan_info.get("clanname", "N/A")
+        guild_level = clan_info.get("guildlevel", "N/A")
+        live_member = clan_info.get("livemember", "N/A")
+
+        # JSON Response
+        result = {
+            "Username": username,
+            "Level": level,
+            "Likes": likes,
+            "Region": region,
+            "Last Login": last_login,
+            "Bio": bio,
+            "Exp": exp,
+            "OB": ob,
+            "Avatar": avatar,
+            "Banner": banner,
+            "ClanAdmin": {
+                "Admin Name": admin_name,
+                "BR Point": br_point,
+                "CS Point": cs_point,
+                "Exp": admin_exp,
+                "ID Admin": id_admin
+            },
+            "ClanInfo": {
+                "Clan ID": clan_id,
+                "Clan Name": clan_name,
+                "Guild Level": guild_level,
+                "Live Members": live_member
+            }
+        }
+        return result
+    else:
+        return {"error": f"Failed to fetch data. Status Code: {response.status_code}"}
+
+@app.route('/freefire/<uid>', methods=['GET'])
+def get_freefire_info(uid):
+    return jsonify(fetch_ff_info(uid))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
